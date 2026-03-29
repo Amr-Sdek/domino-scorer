@@ -352,8 +352,7 @@ const app = {
     finalizeGame(winner) {
         let msg = winner ? 'مبروك يا معلم ' + winner.name + '، اكتسحت الجيم! 🏆' : 'انتهت اللعبة!';
 
-        this.showModal('نهاية الجيم 🏆', msg, () => {
-            // Confirm Win
+        const processStats = () => {
             if (winner && this.state.leaderboard[winner.name]) {
                 this.state.leaderboard[winner.name].wins++;
             }
@@ -364,13 +363,42 @@ const app = {
                     }
                 }
             });
+        };
 
-            this.state.game.active = false;
-            this.saveData();
-            this.renderLeaderboard();
-            this.navigate('leaderboard');
-            if (this.wakeLock) this.releaseWakeLock();
-        }, true, true);
+        this.showCustomModal('نهاية الجيم 🏆', msg, [
+            {
+                text: 'إلغاء و تراجع ↩️', class: 'btn-danger', onclick: () => {
+                    this.closeModal();
+                    this.undoLastAction();
+                }
+            },
+            {
+                text: 'ابدأ عشرة جديدة 🔄', class: 'btn-primary btn-large', onclick: () => {
+                    this.closeModal();
+                    processStats();
+                    this.state.game.players.forEach(p => {
+                        p.score = 0;
+                        p.history = [];
+                        p.eliminated = false;
+                    });
+                    this.state.game.historyStack = [];
+                    this.state.game.currentInput = '';
+                    this.saveData();
+                    this.renderGame();
+                }
+            },
+            {
+                text: 'إنهاء للخلفية 🛑', class: 'btn-secondary', onclick: () => {
+                    this.closeModal();
+                    processStats();
+                    this.state.game.active = false;
+                    this.saveData();
+                    this.renderLeaderboard();
+                    this.navigate('leaderboard');
+                    if (this.wakeLock) this.releaseWakeLock();
+                }
+            }
+        ]);
     },
 
     // --- Leaderboard ---
@@ -518,6 +546,26 @@ const app = {
             if (callback) callback();
         };
         actions.appendChild(primaryBtn);
+
+        const overlay = document.getElementById('modal-overlay');
+        overlay.classList.remove('hidden');
+    },
+
+    showCustomModal(title, message, buttons) {
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-message').innerText = message;
+
+        const actions = document.getElementById('modal-actions');
+        actions.innerHTML = '';
+        actions.style.flexDirection = 'column';
+
+        buttons.forEach(btn => {
+            const domBtn = document.createElement('button');
+            domBtn.className = 'btn ' + (btn.class || 'btn-primary');
+            domBtn.innerText = btn.text;
+            domBtn.onclick = btn.onclick;
+            actions.appendChild(domBtn);
+        });
 
         const overlay = document.getElementById('modal-overlay');
         overlay.classList.remove('hidden');
